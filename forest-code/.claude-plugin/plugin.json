@@ -1,0 +1,9 @@
+{
+  "name": "forest-code",
+  "version": "1.0.0",
+  "description": "Write and maintain Forest Admin agent customization code — modern agent (@forestadmin/agent Node.js + forest_admin_agent Ruby) and legacy agents (forest-express-sequelize/mongoose, forest-rails)",
+  "author": {
+    "name": "Forest Admin",
+    "url": "https://www.forestadmin.com"
+  }
+}

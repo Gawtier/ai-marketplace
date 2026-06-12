@@ -12,6 +12,16 @@ MCP server skill for querying and manipulating Forest Admin data. Provides tools
 - Exploring collection schemas and relations
 - Filtering with comprehensive operators
 
+### forest-code
+
+Write and maintain Forest Admin agent customization code (backend only). Two skills, auto-selected from the project's `package.json` / `Gemfile`:
+- **forest-code** — the modern agent (`@forestadmin/agent` Node.js + `forest_admin_agent` Ruby): actions, fields, hooks, segments, charts, relationships, datasources.
+- **forest-legacy** — legacy agents (`forest-express-sequelize`, `forest-express-mongoose`, `forest-rails`): Smart Actions, Smart Fields, Smart Segments, Smart Collections, routes.
+
+### forest-docs
+
+Connects your AI client to the Forest Admin documentation MCP server (hosted by Mintlify): search and read the docs on demand. Works in any MCP-capable tool, not only Claude.
+
 ## Installation
 
 ### Claude Code
@@ -20,6 +30,8 @@ MCP server skill for querying and manipulating Forest Admin data. Provides tools
 ```
 /plugin marketplace add ForestAdmin/ai-marketplace
 /plugin install forest-mcp
+/plugin install forest-code
+/plugin install forest-docs
 ```
 
 **Option 2: Manual copy**
@@ -54,14 +66,17 @@ cp -r forest-mcp/skills/forest-mcp .claude/skills/
 ai-marketplace/
 ├── .claude-plugin/
 │   └── marketplace.json          # Marketplace catalog
-└── forest-mcp/                   # Plugin
-    ├── .claude-plugin/
-    │   └── plugin.json           # Plugin manifest
-    └── skills/
-        └── forest-mcp/           # Skill
-            ├── SKILL.md
-            └── references/
-                └── filters-reference.md
+├── forest-mcp/                   # Plugin (skill)
+│   ├── .claude-plugin/plugin.json
+│   └── skills/forest-mcp/
+├── forest-code/                  # Plugin (skills)
+│   ├── .claude-plugin/plugin.json
+│   └── skills/
+│       ├── forest-code/          # modern agent
+│       └── forest-legacy/        # legacy agents
+└── forest-docs/                  # Plugin (MCP)
+    ├── .claude-plugin/plugin.json
+    └── .mcp.json                 # registers the docs MCP server
 ```
 
 ## License

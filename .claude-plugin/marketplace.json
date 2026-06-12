@@ -10,6 +10,16 @@
       "name": "forest-mcp",
       "source": "./forest-mcp",
       "description": "MCP server skill for querying and manipulating Forest Admin data"
+    },
+    {
+      "name": "forest-code",
+      "source": "./forest-code",
+      "description": "Write and maintain Forest Admin agent code (modern + legacy)"
+    },
+    {
+      "name": "forest-docs",
+      "source": "./forest-docs",
+      "description": "Ask anything about Forest Admin — connects to the docs MCP server"
     }
   ]
 }
