@@ -20,6 +20,11 @@
       "name": "forest-docs",
       "source": "./forest-docs",
       "description": "Ask anything about Forest Admin — connects to the docs MCP server"
+    },
+    {
+      "name": "forest-onboarding",
+      "source": "./forest-onboarding",
+      "description": "Onboard onto Forest Admin headlessly (Standalone-first): account, project, dev agent, production deploy, and team invitations"
     }
   ]
 }

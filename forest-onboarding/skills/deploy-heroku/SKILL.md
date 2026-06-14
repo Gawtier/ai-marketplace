@@ -1,0 +1,90 @@
+---
+name: deploy-heroku
+description: >
+  Deploy a Forest Admin Standalone agent to production on Heroku, using the
+  Heroku CLI. Use when someone wants to "deploy my Forest Admin agent to
+  Heroku", "put my admin panel in production", or "activate the production
+  environment". Pushes the agent code, sets the production env vars, applies the
+  known PaaS findings, and activates the environment. Pairs with forest-onboard.
+---
+
+# Deploy a Standalone agent to production (Heroku)
+
+Activates a **production environment** by deploying the agent code so it pushes its schema. This is the manual procedure validated end-to-end — script it faithfully.
+
+## Prerequisites (preflight)
+
+- 🟩 REMEDIATE if missing: `heroku` CLI installed, `heroku auth:whoami` authenticated, a **billed team** (apps must NOT be created in the personal space).
+- Inputs: the built agent directory; the **production** environment's `FOREST_ENV_SECRET` (its `secretKey`, from `environments:create --type production` / `environments:get`); a `FOREST_AUTH_SECRET` (generate one if needed); a `DATABASE_URL` reachable **from the PaaS**.
+
+## Findings to apply (do not skip)
+
+1. **PORT** — the scaffold listens on `APPLICATION_PORT`, but Heroku injects `PORT`. Patch the agent entrypoint to `Number(process.env.PORT || process.env.APPLICATION_PORT)`.
+2. **DATABASE_URL** — a direct DB URL that works locally can fail from Heroku (IPv6 `ENETUNREACH`). Use an **IPv4 pooler** connection string (e.g. Supabase `:6543`).
+3. **Billed team** — `heroku create -t <billed-team>` (e.g. `forestadmin-product`), not the personal space.
+4. **Production schema** — with `NODE_ENV=production` the agent reads the **committed** `.forestadmin-schema.json` (not introspected). Make sure it is generated (dev boot) and committed; regenerate + recommit after any customization.
+
+## Procedure
+
+```bash
+# 1. App on a billed team
+heroku create -t <billed-team>            # note the app name + URL
+
+# 2. Production config (use the PROD env secret, not the dev one)
+heroku config:set -a <app> \
+  NODE_ENV=production \
+  FOREST_ENV_SECRET=<prod env secretKey> \
+  FOREST_AUTH_SECRET=<generated> \
+  DATABASE_URL="<ipv4 pooler url>" \
+  DATABASE_SCHEMA=<schema> \
+  DATABASE_SSL_MODE=<mode>
+
+# 3. Ship it (Node buildpack; a `web: npm start` Procfile is enough)
+git init && git add -A && git commit -m "deploy agent"
+git push heroku HEAD:main
+```
+
+## Verify & activate
+
+- Check the dyno logs for `Schema was updated, sending new version` then `Successfully mounted on Standalone server` and `State changed … to up`.
+- The schema push on this **new** prod env sets `apimapVersionId` **and creates the project's first role ("Operations")**.
+- **Set the apiEndpoint** so the env becomes fully active (otherwise the auth callback breaks with `null/forest/...`):
+  ```bash
+  forest environments:update -e <prod env id> -u https://<app>.herokuapp.com
+  ```
+- Confirm: `forest environments:get <prod env id> --format json` → `"isActive": true`.
+
+## Troubleshooting (common failures)
+
+Inspect first: `heroku logs --tail -a <app>` and `heroku ps -a <app>`.
+
+| Symptom (logs) | Cause | Fix |
+|---|---|---|
+| `Error R10 (Boot timeout)` / "failed to bind to $PORT" | the agent listens on `APPLICATION_PORT`, not Heroku's `PORT` | apply the **PORT patch** (`process.env.PORT \|\| process.env.APPLICATION_PORT`) and redeploy |
+| `H10 App crashed` right after boot | runtime error before mount | read the stack in `heroku logs`; usually DB or env-var related (below) |
+| `ENETUNREACH` / DB connection times out | direct DB URL is IPv6-only from the PaaS | use the **IPv4 pooler** connection string (Supabase `:6543`) |
+| `no pg_hba` / `SSL required` / self-signed | DB SSL mismatch | set `DATABASE_SSL_MODE` (e.g. `required`) in `config:set` |
+| Build fails on `npm install` / unsupported Node | Heroku picked a different Node | pin `engines.node` (e.g. `"22.x"`) in `package.json` |
+| Auth warning `invalid_redirect_uri … null/forest/authentication/callback` | env `apiEndpoint` not set yet | `forest environments:update -e <id> -u <url>` then `heroku restart` |
+| Prod panel shows **0 collections** / empty schema | in `NODE_ENV=production` the agent reads the **committed** `.forestadmin-schema.json`, which is missing/stale | regenerate it (dev boot / `forest schema:update`), **commit**, redeploy |
+
+## Redeploy after a change (code or customization)
+
+In `NODE_ENV=production` the agent serves the **committed** `.forestadmin-schema.json` — it does **not** introspect. A code change or a `forest-code` customization stays invisible in production until you regenerate and redeploy. After ANY change:
+
+1. Apply the change (e.g. via the `forest-code` skill — it writes the code but does **not** redeploy).
+2. **Regenerate the schema**: boot the agent once in dev (it rewrites `.forestadmin-schema.json`), or run `forest schema:update`.
+3. **Commit** the updated `.forestadmin-schema.json` (+ code).
+4. `git push heroku HEAD:main`.
+5. `heroku restart -a <app>` if the dyno doesn't recycle on its own.
+6. Verify: `heroku logs --tail` shows a fresh `Schema was updated…`; the prod panel reflects the change.
+
+> Skipping steps 2–3 is the #1 reason "my changes don't show up in production": the schema file is the source of truth in prod.
+
+## Fail-fast
+
+- 🟥 Build failure, or prod never reaches `isActive` after a reasonable timeout → stop with the logs; do not loop silently.
+
+## Cleanup (for test/dry runs)
+
+`heroku apps:destroy <app> --confirm <app>` · then delete the Forest project if it was a throwaway (`DELETE /api/projects/:id`, cascades env/role/invitation).

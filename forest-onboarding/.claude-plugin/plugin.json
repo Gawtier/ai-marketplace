@@ -1,0 +1,9 @@
+{
+  "name": "forest-onboarding",
+  "version": "0.1.0",
+  "description": "Onboard onto Forest Admin headlessly (Standalone-first): create an account, a project, boot the dev agent, create and deploy a production environment, then invite the team — orchestrated end-to-end from the CLI, no UI.",
+  "author": {
+    "name": "Forest Admin",
+    "url": "https://www.forestadmin.com"
+  }
+}
