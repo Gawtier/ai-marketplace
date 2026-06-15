@@ -24,9 +24,11 @@ Drive the whole Standalone onboarding from the terminal, in the **validated orde
 
 ## Collect intent (arguments, not a wizard)
 
-- use-case / app name · database connection (URL) · language (`javascript`/`typescript`)
-- whether to go to **production** (deploy) and on which PaaS (Heroku first)
-- whether to **invite** teammates (emails, team, role, permission level)
+- use-case / app name · language (`javascript`/`typescript`)
+- **dev database** connection (URL) — may be a **local** DB (`localhost` / Docker).
+- whether to go to **production** (deploy) and on which PaaS (Heroku first).
+  - If deploying: the **production database**. It **must be remotely reachable** — a local dev DB will NOT work from a PaaS. **Ask** whether prod uses the **same** DB as dev (only valid if dev already uses a remote DB) or a **dedicated prod DB**, and capture that prod `DATABASE_URL`. 🟦 If it's the same DB, warn that admin actions hit real production data.
+- whether to **invite** teammates (emails, team, role, permission level).
 
 ## The validated flow (keep this order — two hard gates)
 

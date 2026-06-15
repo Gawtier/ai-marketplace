@@ -15,12 +15,12 @@ Activates a **production environment** by deploying the agent code so it pushes 
 ## Prerequisites (preflight)
 
 - 🟩 REMEDIATE if missing: `heroku` CLI installed, `heroku auth:whoami` authenticated, a **billed team** (apps must NOT be created in the personal space).
-- Inputs: the built agent directory; the **production** environment's `FOREST_ENV_SECRET` (its `secretKey`, from `environments:create --type production` / `environments:get`); a `FOREST_AUTH_SECRET` (generate one if needed); a `DATABASE_URL` reachable **from the PaaS**.
+- Inputs: the built agent directory; the **production** environment's `FOREST_ENV_SECRET` (its `secretKey`, from `environments:create --type production` / `environments:get`); a `FOREST_AUTH_SECRET` (generate one if needed); a **production `DATABASE_URL`** — must be **remotely reachable** (a local dev DB won't work — see finding #2).
 
 ## Findings to apply (do not skip)
 
 1. **PORT** — the scaffold listens on `APPLICATION_PORT`, but Heroku injects `PORT`. Patch the agent entrypoint to `Number(process.env.PORT || process.env.APPLICATION_PORT)`.
-2. **DATABASE_URL** — a direct DB URL that works locally can fail from Heroku (IPv6 `ENETUNREACH`). Use an **IPv4 pooler** connection string (e.g. Supabase `:6543`).
+2. **DATABASE_URL — production needs a remotely-reachable DB.** A **local dev database (`localhost` / Docker) will NOT work from Heroku** → require a **managed/remote** prod DB (the same one as dev only if dev already uses a remote DB; otherwise a dedicated prod DB). Even with a cloud DB, a direct URL can fail from Heroku over IPv6 (`ENETUNREACH`) → use an **IPv4 pooler** connection string (e.g. Supabase `:6543`).
 3. **Billed team** — `heroku create -t <billed-team>` (e.g. `forestadmin-product`), not the personal space.
 4. **Production schema** — with `NODE_ENV=production` the agent reads the **committed** `.forestadmin-schema.json` (not introspected). Make sure it is generated (dev boot) and committed; regenerate + recommit after any customization.
 
