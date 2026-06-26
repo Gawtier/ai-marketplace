@@ -36,6 +36,21 @@ Make this feel like a **guided setup**, not an interrogation. Narrating checks i
    - **Dev** — concise and technical; the checklist can be terse.
 4. **At each gate/checkpoint**, say in one line *what's happening and why* before pausing — especially before anything outward-facing.
 
+## Running the CLI (read first — avoids wasted calls)
+
+Field-tested gotchas. Following these the first time saves ~10 failed calls:
+
+- **Wrap every `forest` call in `bash -c '… </dev/null 2>&1'`.** Two proven reasons: (1) a broken zsh `command_not_found_handler` (e.g. `mise`) can **swallow `forest`'s stdout** — `bash` bypasses it; (2) `</dev/null` stops the CLI **hanging on an interactive prompt** (it fails fast instead). Don't rely on `timeout` — it's often absent on macOS.
+- **Pass every flag up front; never hand-answer a prompt.** If a prompt appears, a flag is missing — add it and re-run. Known prompt-triggers → the flag that silences them:
+  | Command | Prompt you'll hit | Flag(s) to always pass |
+  |---|---|---|
+  | `projects:create:sql/nosql/demo` | "What's the IP/hostname…" | `-H http://localhost -P 3310` |
+  | `layout:pull` | "Select the team/environment" | `-e <env id> -t Operations` |
+  | `layout:apply` | team/env + confirmation | `-e <env id> -t Operations -f` |
+- **Resolve the env id**, don't guess: `forest environments --format json` → parse `id` / `name` / `type` (dev env is `type: development`).
+- **Project naming** — default to a unique name to dodge collisions (a name stays **reserved even if creation failed**): `forest-implem-<random>` (dev) / `forest-demo-<random>` (ops). Only use a custom name the user volunteered.
+- **Filtering noise**: `forest` may also print `Warning: Could not find typescript … Falling back to compiled source` — harmless, ignore it.
+
 ## STOP — preflight & "show before act" (before any mutation)
 
 1. **Pick the flow first** (see *Two flows* below) — it decides what preflight even checks. Routing rule: **has a reachable DB → dev flow; no DB → ops/demo flow.**
@@ -68,7 +83,7 @@ The most dangerous secret here is the **database connection URI** — it carries
 
 Frame the onboarding around **who the user is and whether they have a database** — not a technical toggle. Two flows:
 
-- **Dev flow — "I have a database, I want to build & deploy."** A developer connecting Forest to their own data → `forest projects:create:sql` / `:nosql`. Goes the full distance: real DB → boot → layout → customizations → production → deploy → invite. **The dev DB and the prod DB can differ** (see below).
+- **Dev flow — "I have a database, I want to build & deploy."** A developer connecting Forest to their own data → `forest projects:create:sql` / `:nosql`. Goes the full distance: real DB → boot → customizations → production → deploy → **layout (on prod)** → invite. **The dev DB and the prod DB can differ** (see below).
 - **Ops flow — "I have no database, I want to explore."** Someone evaluating Forest, no DB / no Docker → `forest projects:create:demo` scaffolds an agent on a **self-contained fintech demo datasource** + ships a curated layout file. Boot → apply layout → explore locally. Data is ephemeral; deploy is possible but rarely the point.
 
 **Routing rule: no reachable database ⇒ ops/demo flow** (never block on "no DB"). If the user has a DB and wants their real data, it's the dev flow. Ask which fits; if they're unsure or DB-less, start the ops flow.
@@ -89,33 +104,36 @@ The ops persona **explores**; they are not a developer. Minimise questions and j
 
 - flow (dev / ops) · use-case / app name · language *(dev flow only — ops is always TypeScript)*.
 - **(dev flow) dev database** connection — collected via a **`.env` the user writes** (`DATABASE_URL=…`), not pasted in chat (see *Secrets & credentials*). May be a **local** DB (`localhost` / Docker).
-- **(dev flow only)** whether to go to **production** (deploy) and on which PaaS (Heroku first).
-  - If deploying: the **production database — which may be a different DB than dev.** It **must be remotely reachable** — a local dev DB will NOT work from a PaaS. **Ask** whether prod uses the **same** DB as dev (only valid if dev already uses a remote DB) or a **dedicated prod DB**, and capture that prod `DATABASE_URL` **separately** (its own `.env` / `heroku config`, never the dev value reused blindly). 🟦 If it's the same DB, warn that admin actions hit real production data.
+- **(dev flow only)** whether they eventually want **production** (deploy) and on which PaaS (Heroku first) — just the yes/no intent here. **Do NOT ask about the production database yet** — get the dev environment working first; the prod-DB choice is collected at the deploy step (step 7), where it belongs.
 - **(dev flow only)** whether to **invite** teammates (emails, role, permission level, team). `teams:create|delete` exist if you need to set up a team first.
 
 ## The validated flow (keep this order — two hard gates)
 
 1. **Account** — check auth with **`forest user`** (it prints the logged-in email). If it shows no session: `forest login`; if the user has no account, sign up in the **web UI** first (see Auth above), then `forest login`. Token persists across commands.
 2. **Project + dev env** —
-   - Dev flow — **`.env` first** (secret-safe): have the user write `DATABASE_URL`/`DATABASE_SCHEMA`/`DATABASE_SSL_MODE` into a `.env`, then `set -a; . ./.env; set +a` and run `forest projects:create:sql` / `:nosql -c "$DATABASE_URL" -l <lang> -s "$DATABASE_SCHEMA" -H <host> -P <port> --databaseSSL`. Pass the URI **by reference** (`$DATABASE_URL`) — never inline the value. (Or let the CLI prompt interactively.)
+   - Dev flow — **`.env` first** (secret-safe): have the user write `DATABASE_URL`/`DATABASE_SCHEMA`/`DATABASE_SSL_MODE` into a `.env`, then `set -a; . ./.env; set +a` and run `forest projects:create:sql` / `:nosql -c "$DATABASE_URL" -l <lang> -s "$DATABASE_SCHEMA" --databaseSslMode "$DATABASE_SSL_MODE" -H http://localhost -P 3310`. **Always pass `-H http://localhost -P 3310`** (else it prompts for the hostname). Pass the URI **by reference** (`$DATABASE_URL`) — never inline the value.
    - Ops flow — **fully non-interactive**: `forest projects:create:demo forest-demo-<suffix> -l typescript -H http://localhost -P 3310`. Always pass `-H`/`-P` (localhost) so it **never prompts for hostname**, and a unique `forest-demo-<suffix>` name. No DB, no `.env`.
    - Either way this creates the project, the **dev environment**, the agent scaffold and (dev flow) the project's own `.env`. **Never** use legacy `forest projects create` (forest-express v1).
 3. **Boot the dev agent** → use the **`boot-standalone-agent`** skill. The agent pushes its schema → dev env active.
    - 🚧 **GATE 1**: an environment must have pushed its apimap here, otherwise later steps are refused (*"Please finalize the configuration…"*).
-4. **Configure the layout** — make the panel readable. The layout is UI-only and **does not require redeploy** (it is pushed to Forest, not your code).
-   - 🚧 **Boot first (GATE 1).** `forest layout:apply` is **rejected until the agent has booted and pushed its schema** — Forest needs an existing rendering to patch. So the order is always **create → boot (step 3, `npm start`) → layout:apply**. Never apply a layout on a freshly-created env that hasn't run yet.
-   - Ops flow: `create:demo` **ships a curated `forest-layout.json` in the scaffold but does NOT apply it** — that is on you. After boot, **non-interactively**: `forest layout:apply forest-layout.json -p <projectId> -e <dev env name|id> -f` — pass `-p`/`-e` (resolve them from the create step / `forest environments:list -p <projectId> --format json`) to skip the project/environment prompts, and `-f` to skip the confirmation. (Don't skip this step — without it the demo panel is uncurated despite the bundled file.)
-   - Dev flow: after boot, `forest layout:pull` → edit `forest-layout.json` (hide technical fields `*_id`/`passwordHash`/timestamps, set sensible record titles, group fields) → `forest layout:apply forest-layout.json`.
+4. **Configure the layout** — make the panel readable. Layout is UI-only and **does not require redeploy** (pushed to Forest, not your code). It is **per-environment**, so curate the env the user will actually use.
+   - 🚧 **Boot first (GATE 1).** `forest layout:apply` is **rejected until the agent has booted and pushed its schema** (Forest needs an existing rendering to patch). Never apply a layout to an env that hasn't run yet.
+   - **Ops flow — now** (on the dev env, after boot): `create:demo` ships a curated `forest-layout.json` but does **not** apply it — apply it: `forest layout:apply forest-layout.json -e <dev env id> -t Operations -f` (don't skip — without it the panel is uncurated).
+   - **Dev flow — defer to AFTER the production deploy** (step 7), and apply to the **production** env: curating mid-flow is a distraction, and since layout is per-env you want to curate the env the user lands on. (If they're not deploying, do it on the dev env after boot.) Steps: `forest layout:pull -e <env id> -t Operations` → edit `forest-layout.json` → `forest layout:apply forest-layout.json -e <env id> -t Operations -f`.
+     - **Curation rule** (get it right in one pass — don't over-hide then re-pull): each collection's `layout.columns[]` carries `{id, isVisible, position}`. Hide **foreign keys** (`*_id`), **audit timestamps** (`created_at`/`updated_at`/`deleted_at`), and **secrets** (`password`/`hash`/`token`/`secret`/`encrypted`). **Keep visible** business identifiers that merely end in `_id` or look technical: `public_id`, `external_id`, `slug`, `reference`, `*_number` — these often make the best record title.
 5. **Customizations** *(optional)* → hand off to the **`forest-code`** skill (actions, fields, hooks, segments). After any customization, **regenerate `.forestadmin-schema.json` + commit + redeploy** (production reads the frozen schema).
 6. **Production environment** *(optional)* — `forest environments:create --type production -n Production` (URL may be omitted; created **inactive**, **no role yet**).
-7. **Deploy** *(optional)* → use the **`deploy-heroku`** skill: push the agent code with the **production** `FOREST_ENV_SECRET`. The agent pushes its schema to prod → `apimapVersionId` **+ the first role ("Operations") is created here**. Then set the env's `apiEndpoint` (`forest environments:update -e <id> -u <url>`) → `isActive: true`.
+7. **Deploy** *(optional)* → first collect the **production database** here (not earlier): it **may differ from dev** and **must be remotely reachable** (a local dev DB will NOT work from a PaaS). Ask same-as-dev (only valid if dev is already remote) vs a dedicated prod DB; capture that prod `DATABASE_URL` **separately** (its own `heroku config` / `.env`, never the dev value reused blindly). 🟦 If same DB, warn that admin actions hit real production data. Then use the **`deploy-heroku`** skill: push the agent code with the **production** `FOREST_ENV_SECRET`. The agent pushes its schema to prod → `apimapVersionId` **+ the first role ("Operations") is created here**. Set the env's `apiEndpoint` (`forest environments:update -e <id> -u <url>`) → `isActive: true`.
    - 🚧 **GATE 2**: the **first role is created by this deployment** — so **inviting before deploying fails** ("No role found"). Either deploy first, or create a role up front with `forest roles:create -n <name>`.
+   - Once prod is active, **(dev flow)** run step 4's layout curation against the **production** env, then **surface the panel link** `https://app.forestadmin.com/<project-name>` before inviting. ⚠️ The Heroku/localhost URL is the **agent backend**, NOT the panel — never present it as "the admin panel".
 8. **Invite the team** *(optional)* — `forest users:invite -e <email> -l <level> [-r <role>] [-t <team>]`. `-e` repeats for several users; resolves role/team **by name**. 🟦 sends real emails.
 
 ## Output (end of run)
 
-- **Ops flow** — keep it plain and end on the link. Print the **panel URL** `https://app.forestadmin.com/<project-name>` with a one-liner like *"Your demo admin panel is live — open this to explore."* No env-vars block, no technical ids, no "next steps" jargon.
-- **Dev flow** — a concise summary: projectId, dev (& prod) environment ids, the **production env-vars block** (`FOREST_ENV_SECRET`, generated `FOREST_AUTH_SECRET`, `DATABASE_URL`) when deployed, what is live, and any remaining manual steps. The panel is at `https://app.forestadmin.com/<project-name>`.
+The **admin panel** is always `https://app.forestadmin.com/<project-name>` — that is the link to give the user. The Heroku/localhost URL is the **agent backend**, never the panel.
+
+- **Ops flow** — keep it plain and end on the link: *"Your demo admin panel is live — open `https://app.forestadmin.com/<project-name>` to explore."* No env-vars block, no technical ids, no jargon.
+- **Dev flow** — a concise summary: projectId, dev (& prod) environment ids, the **production env-vars block** (`FOREST_ENV_SECRET`, generated `FOREST_AUTH_SECRET`, `DATABASE_URL`) when deployed, what is live, the **panel link** `https://app.forestadmin.com/<project-name>`, and any remaining manual steps.
 
 ## Notes
 
