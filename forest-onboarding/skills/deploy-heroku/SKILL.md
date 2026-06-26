@@ -12,10 +12,23 @@ description: >
 
 Activates a **production environment** by deploying the agent code so it pushes its schema. This is the manual procedure validated end-to-end — script it faithfully.
 
+> Applies to the **real-DB** scaffold. The **demo** scaffold (`create:demo`) can technically be deployed too, but its datasource is **in-memory and ephemeral** (regenerated at boot, no `DATABASE_URL`) — usually demo locally and stop there. If you do deploy it, skip the DB findings (#2) and drop the `DATABASE_*` config vars.
+
 ## Prerequisites (preflight)
 
 - 🟩 REMEDIATE if missing: `heroku` CLI installed, `heroku auth:whoami` authenticated, a **billed team** (apps must NOT be created in the personal space).
 - Inputs: the built agent directory; the **production** environment's `FOREST_ENV_SECRET` (its `secretKey`, from `environments:create --type production` / `environments:get`); a `FOREST_AUTH_SECRET` (generate one if needed); a **production `DATABASE_URL`** — must be **remotely reachable** (a local dev DB won't work — see finding #2).
+
+## Secrets (by reference, never echoed)
+
+The prod `FOREST_ENV_SECRET` and `DATABASE_URL` must not enter the model's context. **Pipe** the env secret straight from the CLI into Heroku instead of printing it:
+
+```bash
+forest environments:get <prod env id> --format json | jq -r .secretKey \
+  | xargs -I{} heroku config:set -a <app> FOREST_ENV_SECRET={}
+```
+
+Likewise generate `FOREST_AUTH_SECRET` in-shell (`openssl rand -hex 32`) and set `DATABASE_URL` from a sourced `.env` (`$DATABASE_URL`) — never inline a secret value or `cat` the `.env`.
 
 ## Findings to apply (do not skip)
 

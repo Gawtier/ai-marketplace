@@ -2,9 +2,11 @@
 
 > Just-enough vocabulary to run the headless onboarding **offline**. For anything deeper, use the **`forest-docs`** plugin (live docs) or https://docs.forestadmin.com.
 
-- **Account / project** — you sign up for an **account**, then create a **project**. A project is one admin panel backed by your data, and contains several environments.
+- **Account / project** — you sign up for an **account in the web UI** (https://app.forestadmin.com — there is no CLI signup; email verification + ToS live there), then `forest login`. You then create a **project**: one admin panel backed by your data, containing several environments.
 
 - **Agent** — the program (Node.js `@forestadmin/agent` or Ruby `forest_admin_agent`) that connects to your database and exposes it to Forest. In **Standalone** mode it runs as its own server (vs **in-app**, embedded in an existing app). It runs on *your* infrastructure; Forest never holds your data.
+
+- **Demo datasource** — the zero-DB path (`forest projects:create:demo`) scaffolds the agent on a **self-contained demo datasource** (`@forestadmin/datasource-demo-fintech`, bundled local data) instead of a real DB: realistic fintech sample data. No external `DATABASE_URL`, no introspection. For evaluating Forest end-to-end in minutes; the data is ephemeral. The scaffold also **ships a curated `forest-layout.json`** but does **not** apply it — run `forest layout:apply forest-layout.json` after boot (a separate onboarding step the orchestrator owns).
 
 - **Environment** — an instance of the project. Types:
   - **development** — per-user local env; **roles are disabled**; created via `forest init` / the dev flow.
