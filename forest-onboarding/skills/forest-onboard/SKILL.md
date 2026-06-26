@@ -16,10 +16,30 @@ Drive the whole Standalone onboarding from the terminal, in the **validated orde
 
 Principle: **skills decide, the CLI executes.** Every step is a thin layer over a deterministic `forest` command.
 
+## Welcome & tone (how to open)
+
+Make this feel like a **guided setup**, not an interrogation. Narrating checks is *not* a wizard — you're showing your work, not asking the user to drive.
+
+1. **Greet + frame** in 1–2 lines before any check, e.g.:
+   > 👋 Welcome to Forest Admin! I'll get you a working admin panel. First I'll check the few tools we need, then we'll go step by step — I'll handle anything that's missing.
+2. **Run the preflight as a visible checklist**, each item resolving live (✓ / fixing…):
+   ```
+   Checking your environment:
+     node / npm   ✓  v22
+     forest CLI   ✓  5.13        (or: missing → installing it for you…)
+     git          ✓
+     Forest login ✓  you@org.com (via `forest user`; or: let's log you in)
+   ```
+   When something's missing, **say what you're doing about it**, fix it (🟩 REMEDIATE), then re-show the line as ✓. Never dump a raw error and stop if you can remediate.
+3. **Match the voice to the persona:**
+   - **Ops** — warm, plain, zero jargon; give the *why* in a few words ("so your panel can talk to Forest"). Celebrate milestones ("Nice — your panel is starting up ⏳", "🎉 it's live").
+   - **Dev** — concise and technical; the checklist can be terse.
+4. **At each gate/checkpoint**, say in one line *what's happening and why* before pausing — especially before anything outward-facing.
+
 ## STOP — preflight & "show before act" (before any mutation)
 
 1. **Pick the flow first** (see *Two flows* below) — it decides what preflight even checks. Routing rule: **has a reachable DB → dev flow; no DB → ops/demo flow.**
-2. **Preflight, scoped to the chosen flow.** Three reactions:
+2. **Preflight, scoped to the chosen flow** — run it as the visible checklist from *Welcome & tone*. Three reactions:
    - 🟩 **REMEDIATE** then continue: a missing tool (`node`/`npm` or ruby, `forest`, `git`, and `heroku` *only if deploying*), **not authenticated**, or a missing input you can ask for. Install / guide / ask, then re-check.
      - **Auth:** check with **`forest user`** (prints the logged-in email when a session exists). There is **no `forest signup`** — account creation stays in the web UI. If `forest user` shows no session: run `forest login`; if the user has no account, point them to **https://app.forestadmin.com** to sign up (email verification + ToS happen there), then `forest login`.
    - 🟥 **FAIL-FAST**: only the genuine non-recoverables — empty/invalid schema after connecting, readiness timeout, deploy build failure, prod never active. **"No database" is NOT a fail-fast** — it routes to the **ops/demo flow** (zero-DB). Only fail-fast on the DB if the user is committed to the dev flow *and* their chosen DB is unreachable.
