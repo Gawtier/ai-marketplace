@@ -2,7 +2,7 @@
 
 > Just-enough vocabulary to run the headless onboarding **offline**. For anything deeper, use the **`forest-docs`** plugin (live docs) or https://docs.forestadmin.com.
 
-- **Account / project** — you sign up for an **account in the web UI** (https://app.forestadmin.com — there is no CLI signup; email verification + ToS live there), then `forest login`. You then create a **project**: one admin panel backed by your data, containing several environments.
+- **Account / project** — you sign up for an **account in the web UI** (https://app.forestadmin.com — there is no CLI signup; email verification + ToS live there), then `forest login`. You then create a **project**: one **back-office** backed by your data, containing several environments. The back-office is Forest's UI at `https://app.forestadmin.com/<project>` — what users open; the agent server is its *backend*, never "the back-office".
 
 - **Agent** — the program (Node.js `@forestadmin/agent` or Ruby `forest_admin_agent`) that connects to your database and exposes it to Forest. In **Standalone** mode it runs as its own server (vs **in-app**, embedded in an existing app). It runs on *your* infrastructure; Forest never holds your data.
 

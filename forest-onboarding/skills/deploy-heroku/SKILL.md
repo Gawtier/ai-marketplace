@@ -3,7 +3,7 @@ name: deploy-heroku
 description: >
   Deploy a Forest Admin Standalone agent to production on Heroku, using the
   Heroku CLI. Use when someone wants to "deploy my Forest Admin agent to
-  Heroku", "put my admin panel in production", or "activate the production
+  Heroku", "put my back-office in production", or "activate the production
   environment". Pushes the agent code, sets the production env vars, applies the
   known PaaS findings, and activates the environment. Pairs with forest-onboard.
 ---
@@ -79,7 +79,7 @@ Inspect first: `heroku logs --tail -a <app>` and `heroku ps -a <app>`.
 | `no pg_hba` / `SSL required` / self-signed | DB SSL mismatch | set `DATABASE_SSL_MODE` (e.g. `required`) in `config:set` |
 | Build fails on `npm install` / unsupported Node | Heroku picked a different Node | pin `engines.node` (e.g. `"22.x"`) in `package.json` |
 | Auth warning `invalid_redirect_uri … null/forest/authentication/callback` | env `apiEndpoint` not set yet | `forest environments:update -e <id> -u <url>` then `heroku restart` |
-| Prod panel shows **0 collections** / empty schema | in `NODE_ENV=production` the agent reads the **committed** `.forestadmin-schema.json`, which is missing/stale | regenerate it (dev boot / `forest schema:update`), **commit**, redeploy |
+| Prod back-office shows **0 collections** / empty schema | in `NODE_ENV=production` the agent reads the **committed** `.forestadmin-schema.json`, which is missing/stale | regenerate it (dev boot / `forest schema:update`), **commit**, redeploy |
 
 ## Redeploy after a change (code or customization)
 
@@ -90,7 +90,7 @@ In `NODE_ENV=production` the agent serves the **committed** `.forestadmin-schema
 3. **Commit** the updated `.forestadmin-schema.json` (+ code).
 4. `git push heroku HEAD:main`.
 5. `heroku restart -a <app>` if the dyno doesn't recycle on its own.
-6. Verify: `heroku logs --tail` shows a fresh `Schema was updated…`; the prod panel reflects the change.
+6. Verify: `heroku logs --tail` shows a fresh `Schema was updated…`; the prod back-office reflects the change.
 
 > Skipping steps 2–3 is the #1 reason "my changes don't show up in production": the schema file is the source of truth in prod.
 

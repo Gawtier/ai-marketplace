@@ -25,10 +25,21 @@ Before running anything mutating, show the **detected stack** (framework, ORM/da
 
 ## Procedure
 
+`npm start` is a **long-running foreground process** — it does not return. Run it in the **background with its output redirected to a log file**, then poll the log for readiness. Never run `npm start` in the foreground (it blocks the whole run).
+
 ```bash
 cd <generated-project-dir>
-npm install
-npm start
+npm install                                   # then verify it populated deps (see landmine below)
+npm start > /tmp/forest-agent.log 2>&1 &      # background; capture the log
+AGENT_PID=$!                                   # keep the pid to stop it later
+```
+
+Then **poll the log** until the readiness line appears (or the process dies):
+
+```bash
+# re-run a few times; stop when you see "Successfully mounted" or the process has exited
+grep -E "Successfully mounted on Standalone server|Error" /tmp/forest-agent.log
+kill -0 "$AGENT_PID" 2>/dev/null || echo "agent exited — read /tmp/forest-agent.log for the error"
 ```
 
 > Run any `forest` command (e.g. the readiness check below) via `bash -c '… </dev/null 2>&1'` — a broken zsh `command_not_found_handler` (mise) can swallow its output, and `</dev/null` avoids hanging on prompts. See the orchestrator's *Running the CLI* note.
@@ -37,15 +48,15 @@ npm start
 
 ## Readiness signal
 
-Wait for the agent log lines:
+Poll the **log file** for these lines (don't assume — confirm):
 
 ```
 info: Schema was updated, sending new version (hash: …)
 info: Successfully mounted on Standalone server (http://0.0.0.0:<port>)
 ```
 
-- That means the **apimap was pushed** → the dev env is active. You can stop the process (`Ctrl+C`) afterwards; the apimap is recorded server-side.
-- Alternatively confirm via `forest environments:get <dev env id> --format json` (`isActive = apimapVersionId && apiEndpoint`).
+- That means the **apimap was pushed** → the dev env is active. You can stop the process afterwards (`kill "$AGENT_PID"`); the apimap is recorded server-side.
+- The **single source of truth** for readiness is this log line — check it first. Only if it's ambiguous, fall back to `forest environments:get <dev env id> --format json` (`isActive = apimapVersionId && apiEndpoint`). Don't flip between the two.
 
 ## Notes
 
