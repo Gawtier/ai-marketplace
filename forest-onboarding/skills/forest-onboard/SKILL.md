@@ -169,7 +169,7 @@ Two segments with a hard boundary. **Segment 1 runs to completion by default. Se
 
 - **B. Customizations** → hand off to the **`forest-code`** skill (actions, fields, hooks, segments). After any customization, **regenerate `.forestadmin-schema.json` + commit + redeploy** (production reads the frozen schema) — see `deploy-heroku`.
 
-- **C. Go-to-prod (deploy → invite).** Only if the user chose to make it real for their team.
+- **C. Go-to-prod (deploy → invite).** Only if the user chose to make it real for their team. *(A returning user who already has a booted dev project — i.e. is past Segment 1 in a fresh session — should enter here directly via the **`/forest-onboarding:deploy`** command, which resolves the existing project/prod-env instead of re-creating anything. Never re-run Segment 1 for them.)*
   1. **Production environment** — `forest environments:create --type production -n Production` (URL may be omitted; created **inactive**, **no role yet**).
   2. **Collect the production database here** (not earlier): it **may differ from dev** and **must be remotely reachable** (a local dev DB will NOT work from a PaaS). Ask same-as-dev (only valid if dev is already remote) vs a dedicated prod DB; capture that prod `DATABASE_URL` **separately**. 🟦 If same DB, warn that admin actions hit real production data.
   3. **Deploy** → use the **`deploy-heroku`** skill: push the agent code with the **production** `FOREST_ENV_SECRET`. The agent pushes its schema to prod → `apimapVersionId` **+ the first role ("Operations") is created here**. Set `apiEndpoint` (`forest environments:update -e <id> -u <url>`) → `isActive: true`.
