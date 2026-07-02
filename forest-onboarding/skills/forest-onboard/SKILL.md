@@ -213,7 +213,8 @@ Linear and short; no segments, no stop-and-ask beyond the plan recap.
 2. **Project + dev env** — fully non-interactive: `forest projects:create:demo forest-demo-<suffix> -l typescript -H http://localhost -P 3310`. Always pass `-H`/`-P` (localhost) so it **never prompts for hostname**. No DB, no `.env`.
 3. **Boot** → `boot-standalone-agent` (demo scaffold: in-memory datasource, no `.env`). 🚧 GATE 1.
 4. **Apply the curated layout** (auto, on the dev env, after boot): `forest layout:apply forest-layout.json -e <dev env id> -t Operations -f`. `create:demo` ships the file but does **not** apply it — don't skip, or the back-office is uncurated.
-5. **Done** — give the link `https://app.forestadmin.com/<project-name>` and stop. No prod, no invites.
+5. **Done — hand over the link, honestly.** Give `https://app.forestadmin.com/<project-name>` and frame it in plain language: it's a **preview to explore, running on their machine and live only while this terminal stays open** — closing it stops the demo (the data was sample data anyway, nothing to lose). No prod, no invites, no jargon (never say "agent"/"apimap"/"localhost" to an ops user). Example close:
+   > 🎉 Your demo back-office is ready → open `https://app.forestadmin.com/<project-name>` and click around. It runs from this window, so keep it open while you explore; close it when you're done — it's just sample data.
 
 ## Output (end of run)
 
