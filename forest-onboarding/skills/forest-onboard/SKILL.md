@@ -167,6 +167,11 @@ Two segments with a hard boundary. **Segment 1 runs to completion by default. Se
 
 4. **🎉 Milestone — "your back-office is live"** (this is the finish line of the core):
    - **Prove it, don't just assert it.** Confirm the schema was pushed (the boot log line, or `forest environments:get <dev env id> --format json` → `isActive`) **and** that collections actually surface — the proof a dev cares about is *seeing their tables*, not an `isActive` flag.
+     - **List collections from the frozen schema, not by scraping `typings.ts`.** `.forestadmin-schema.json` (generated at boot — so it exists by this step) is the canonical, structured source. One deterministic command — never regex over the generated TS types (that catches the `plain`/`nested`/`flat` sub-keys and needs several tries):
+       ```bash
+       jq -r '.collections[].name' .forestadmin-schema.json     # the collection names
+       jq  '.collections | length'  .forestadmin-schema.json     # how many
+       ```
    - **Surface the link** — the back-office is `https://app.forestadmin.com/<project-name>`. ⚠️ The localhost/Heroku URL is the **agent backend**, never the back-office — don't present it as the thing to open.
    - **Be honest about what this is:** it runs **on the user's machine, for them only**, and stops when they stop the process. That honesty is what makes the deploy option meaningful — don't oversell local as production.
    - **STOP here.** Present a short, finite menu and **run nothing** until the user picks:
