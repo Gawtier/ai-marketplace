@@ -54,6 +54,9 @@ heroku config:set -a <app> \
 
 # 3. Ship it (Node buildpack; a `web: npm start` Procfile is enough)
 git init && git add -A && git commit -m "deploy agent"
+heroku git:remote -a <app>                 # REQUIRED: wire the remote — `heroku create` only adds it
+                                           # automatically if the git repo already existed at create time,
+                                           # which it does not here (we git-init after create)
 git push heroku HEAD:main
 ```
 
@@ -73,6 +76,7 @@ Inspect first: `heroku logs --tail -a <app>` and `heroku ps -a <app>`.
 
 | Symptom (logs) | Cause | Fix |
 |---|---|---|
+| `fatal: 'heroku' does not appear to be a git repository` on push | the git repo was created **after** `heroku create`, so the remote was never wired | `heroku git:remote -a <app>` then re-push |
 | `Error R10 (Boot timeout)` / "failed to bind to $PORT" | the agent listens on `APPLICATION_PORT`, not Heroku's `PORT` | apply the **PORT patch** (`process.env.PORT \|\| process.env.APPLICATION_PORT`) and redeploy |
 | `H10 App crashed` right after boot | runtime error before mount | read the stack in `heroku logs`; usually DB or env-var related (below) |
 | `ENETUNREACH` / DB connection times out | direct DB URL is IPv6-only from the PaaS | use the **IPv4 pooler** connection string (Supabase `:6543`) |

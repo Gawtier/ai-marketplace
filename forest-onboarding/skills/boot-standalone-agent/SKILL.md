@@ -29,10 +29,14 @@ Before running anything mutating, show the **detected stack** (framework, ORM/da
 
 ```bash
 cd <generated-project-dir>
-npm install                                   # then verify it populated deps (see landmine below)
+npm install                                   # then verify it populated deps (see landmines below)
+npm run build                                 # TypeScript scaffold ONLY — `start` runs the COMPILED dist/;
+                                              # skip for a JS scaffold (it has no build script)
 npm start > /tmp/forest-agent.log 2>&1 &      # background; capture the log
 AGENT_PID=$!                                   # keep the pid to stop it later
 ```
+
+> ⚠️ **TypeScript scaffold** — its `start` script is `node ./dist/index.js`, i.e. it runs the **compiled** output. You **must `npm run build` first**, or `npm start` fails with "Cannot find module './dist/index.js'". (A JS scaffold has no build step — skip it.)
 
 Then **poll the log** until the readiness line appears (or the process dies):
 
@@ -45,6 +49,8 @@ kill -0 "$AGENT_PID" 2>/dev/null || echo "agent exited — read /tmp/forest-agen
 > Run any `forest` command (e.g. the readiness check below) via `bash -c '… </dev/null 2>&1'` — a broken zsh `command_not_found_handler` (mise) can swallow its output, and `</dev/null` avoids hanging on prompts. See the orchestrator's *Running the CLI* note.
 
 > ⚠️ **Demo landmine** — `create:demo`'s bundled install can print "Hooray installation success!" yet leave `node_modules/@forestadmin` **empty**, so `npm start` fails to resolve `@forestadmin/*`. Before booting, **verify** `node_modules/@forestadmin` is populated; if not, **re-run `npm install`** and re-check.
+
+> ⚠️ **TypeScript build landmine (`@types/node` skew)** — the scaffold pins TypeScript `^4.9` but does **not** pin `@types/node`, so `npm install` pulls the latest (v26+), whose `.d.ts` uses syntax TS 4.9 can't parse — `npm run build` then fails with parse errors in `node_modules/@types/node/*.d.ts` (and `skipLibCheck` does **not** skip *parse* errors). Fix in one shot instead of diagnosing: **`npm install --save-dev @types/node@^20`** (matches the Node 22 runtime closely enough), then rebuild. This also breaks the later Heroku build, so pin it here once. *(Root cause is the scaffold; pin proactively right after `npm install`.)*
 
 ## Readiness signal
 
