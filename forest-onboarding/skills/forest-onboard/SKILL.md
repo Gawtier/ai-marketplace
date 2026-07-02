@@ -83,6 +83,26 @@ The most dangerous secret here is the **database connection URI** — it carries
   ```
   Then source it and pass it by reference: `set -a; . ./.env; set +a` → `forest projects:create:sql -c "$DATABASE_URL" …`. The shell expands `$DATABASE_URL`; Claude only ever emits the **variable name**.
 - **Never** ask the user to paste the URI into the chat, **never** `cat`/print a `.env`, **never** put a secret in a command literal or in the final recap.
+- **Never emit ANY derivation of a secret** — not the scheme, not the host, not a prefix, not a "masked" version. Do **not** pipe `$DATABASE_URL` into any command whose output is displayed (`echo`, `printf`, `sed`, `awk`, `cut`…). A redaction that breaks (bad quoting, a regex that doesn't match) **fails OPEN and prints the whole secret** — that is exactly how the URI has leaked in practice. Treat any redaction as guilty until proven safe.
+- **Verifying the `.env` safely — emit only a boolean, never the value:**
+  ```bash
+  set -a; . ./.env; set +a
+  [ -n "$DATABASE_URL" ] && echo "DATABASE_URL: set" || echo "DATABASE_URL: MISSING"
+  echo "DATABASE_SCHEMA: ${DATABASE_SCHEMA:-<unset>}"     # schema/ssl-mode are NOT secrets — fine to show
+  echo "DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-<unset>}"
+  # need to confirm the dialect? test it, don't print it — this emits only the dialect name, never the URL.
+  # Covers every dialect the CLI supports (sql: postgres/mysql/mariadb/mssql · nosql: mongodb):
+  case "$DATABASE_URL" in
+    postgres://*|postgresql://*)   echo "dialect: postgres" ;;
+    mysql://*)                     echo "dialect: mysql" ;;
+    mariadb://*)                   echo "dialect: mariadb" ;;
+    mssql://*|sqlserver://*)       echo "dialect: mssql" ;;
+    mongodb://*|mongodb+srv://*)   echo "dialect: mongodb" ;;
+    *)                             echo "dialect: unrecognized — do NOT print the URL to inspect it" ;;
+  esac
+  ```
+  The rule of thumb: a check on a secret must output a **verdict** (`set`/`ok`/`missing`), never a **transform** of the value.
+- **If a secret leaks anyway** (into the transcript/logs): stop, tell the user plainly, and advise they **rotate that credential** — a leaked value is compromised even if deleted from view.
 - **Reading a secret back** (e.g. the prod `secretKey`): pipe it, don't print it — `forest environments:get <id> --format json | jq -r .secretKey | …` straight into `heroku config:set`, so the value never lands in the model's context.
 - Fallback channel: the CLI's own **interactive prompt** (user types into their TTY) — even safer than env vars (no argv/`ps` exposure either).
 - A hand-rolled root `.env` **must be gitignored** (else it ships via `git push heroku`).
